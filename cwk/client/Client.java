@@ -8,6 +8,12 @@ public class Client {
     private static final int PORT = 9876;
     private static final String USAGE = "Usage:\n1. java Client list\n2. java Client put fname";
 
+    /**
+     * The main entry point of the client application.
+     * Connects to the server, sends the specified command, and handles server responses.
+     *
+     * @param args The command-line arguments specifying the action to be performed.
+     */
     public static void main(String[] args) {
 
         if (args.length == 0) {
@@ -39,6 +45,14 @@ public class Client {
         }
     }
 
+    /**
+     * Sends a 'list' command to the server and displays the list of files received.
+     *
+     * @param args   The command-line arguments passed to the client.
+     * @param writer The PrintWriter used to send commands to the server.
+     * @param reader The BufferedReader used to receive responses from the server.
+     * @throws IOException If an I/O error occurs during communication with the server.
+     */
     public static void listFiles(String[] args, PrintWriter writer, BufferedReader reader) throws IOException {
         if (args.length != 1) {
             System.err.println(USAGE);
@@ -54,6 +68,15 @@ public class Client {
         }
     }
 
+    /**
+     * Sends a 'put' command to the server along with the specified file's content,
+     * and displays the success or error message received from the server.
+     *
+     * @param args   The command-line arguments passed to the client.
+     * @param writer The PrintWriter used to send commands to the server.
+     * @param reader The BufferedReader used to receive responses from the server.
+     * @throws IOException If an I/O error occurs during communication with the server.
+     */
     public static void putFile(String[] args, PrintWriter writer, BufferedReader reader) throws IOException {
         if (args.length != 2) {
             System.err.println(USAGE);
