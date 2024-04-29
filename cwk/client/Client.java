@@ -105,6 +105,9 @@ public class Client {
                 System.out.println("Uploaded file " + fileName);
                 return;
             }
+            else {
+                System.err.println(response);
+            }
         }
     }
 }

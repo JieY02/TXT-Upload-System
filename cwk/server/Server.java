@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -29,7 +31,13 @@ public class Server {
             Socket clientSocket = serverSocket.accept();
             System.out.println("Client connected: " + clientSocket.getInetAddress().getHostAddress());
 
-            threadPoolExecutor.submit(() -> handleClient(clientSocket));
+            threadPoolExecutor.submit(() -> {
+                try {
+                    handleClient(clientSocket);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
         }
     }
 
@@ -39,9 +47,9 @@ public class Server {
      *
      * @param clientSocket The socket representing the client connection.
      */
-    private static void handleClient(Socket clientSocket) {
+    private static void handleClient(Socket clientSocket) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-             BufferedWriter writer = new BufferedWriter(new FileWriter("received_file.txt"))) {
+             PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true)) {
 
             // 读取客户端发送的命令
             String command = reader.readLine();
@@ -53,20 +61,18 @@ public class Server {
                 case "list" -> listFiles(writer);
                 case "put" ->
                 {
-                    if (commandParts.length != 2)
+                    if (commandParts.length < 2)
                     {
                         writer.write("Error: Invalid command format.");
-                        writer.newLine();
                         writer.flush();
                         break;
                     }
                     String fileName = commandParts[1];
-                    receiveFile(clientSocket, reader, fileName);
+                    receiveFile(clientSocket, commandParts, fileName);
                 }
                 default ->
                 {
                     writer.write("Error: Unknown command.");
-                    writer.newLine();
                     writer.flush();
                 }
             }
@@ -91,47 +97,61 @@ public class Server {
      * @param writer The buffered writer to write the file list to.
      * @throws IOException If an I/O error occurs while listing files or writing to the writer.
      */
-    private static void listFiles(BufferedWriter writer) throws IOException {
+    private static void listFiles(PrintWriter writer) throws IOException {
         File folder = new File("serverFiles");
         File[] files = folder.listFiles();
+        List<String> fileNames = new ArrayList<>();
         if (files != null) {
             for (File file : files) {
                 if (file.isFile()) {
-                    writer.write(file.getName());
-                    writer.newLine();
+                    fileNames.add(file.getName());
                 }
             }
         }
-        writer.flush();
+        String content = "Listing " + fileNames.size() + " file(s):\n" + String.join("\n", fileNames);
+        writer.write(content);
+        System.out.println("Sent file list to client.");
     }
 
     /**
      * Receives a file from the client and saves it to the server directory.
      *
      * @param clientSocket The socket representing the client connection.
-     * @param reader       The buffered reader to read the file contents from.
+     * @param commandParts The file contents.
      * @param fileName     The name of the file to be received.
      * @throws IOException If an I/O error occurs while receiving or saving the file.
      */
-    private static void receiveFile(Socket clientSocket, BufferedReader reader, String fileName) throws IOException {
+    private static void receiveFile(Socket clientSocket, String[] commandParts, String fileName) throws IOException {
         File file = new File("serverFiles", fileName);
         if (file.exists()) {
             // 如果文件已存在，则返回错误信息
-            try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()))) {
+            try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream()))) {
                 writer.write("Error: File already exists.");
-                writer.newLine();
-                writer.flush();
             }
             return;
         }
 
-        try (BufferedWriter fileWriter = new BufferedWriter(new FileWriter(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                fileWriter.write(line);
-                fileWriter.newLine();
+        if (commandParts.length > 2) {
+            StringBuilder contentBuilder = new StringBuilder();
+            for (int i = 2; i < commandParts.length; i++) {
+                contentBuilder.append(commandParts[i]);
+                if (i < commandParts.length - 1) {
+                    contentBuilder.append(" ");
+                }
             }
+            String content = contentBuilder.toString().replace("$$$", "\n");
+
+            try (PrintWriter fileOut = new PrintWriter(file)) {
+                fileOut.print(content);
+            }
+        } else {
+            file.createNewFile();
         }
+
+        try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream()))) {
+            writer.write("Success");
+        }
+        System.out.println("Received file '" + fileName + "' from client and saved to server.");
     }
 
     /**
@@ -141,13 +161,12 @@ public class Server {
      * @param request       The request made by the client.
      */
     private static void logRequest(String clientAddress, String request) {
-        try (BufferedWriter logWriter = new BufferedWriter(new FileWriter("log.txt", true))) {
+        try (PrintWriter logWriter = new PrintWriter(new FileWriter("log.txt", true))) {
             // 获取当前日期和时间
             String dateTime = java.time.LocalDateTime.now().toString();
 
             // 记录请求到日志文件
-            logWriter.write(dateTime + "|" + clientAddress + "|" + request);
-            logWriter.newLine();
+            logWriter.write(dateTime + "|" + clientAddress + "|" + request + "/n");
         } catch (IOException e) {
             e.printStackTrace();
         }
