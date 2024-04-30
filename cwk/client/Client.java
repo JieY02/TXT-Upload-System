@@ -88,11 +88,11 @@ public class Client {
 
         // File not exist.
         if (!file.exists()) {
-            System.err.println(fileName + "is not exist.");
+            System.err.println("Error: Cannot open local file ’" + fileName + "’ for reading.");
             System.exit(1);
         }
 
-        String content = Files.lines(Paths.get(fileName)).collect(Collectors.joining("$$$"));
+        String content = Files.lines(Paths.get(fileName)).collect(Collectors.joining("$@$"));
         String newCommand = args[0] + " " + args[1] + " " + content;
         writer.println(newCommand);
 
@@ -104,8 +104,7 @@ public class Client {
             } else if (response.equals("Success")) {
                 System.out.println("Uploaded file " + fileName);
                 return;
-            }
-            else {
+            } else {
                 System.err.println(response);
             }
         }

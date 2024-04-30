@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -9,6 +11,7 @@ import java.util.concurrent.Executors;
 public class Server {
     private static final String ERROR_LOG_FILE_NOT_CREATE = "Can't create a new log file.";
 
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd|HH:mm:ss");
     private static final int PORT = 9876;
     private static final int THREAD_POOL_SIZE = 20;
     private static ExecutorService threadPoolExecutor;
@@ -124,9 +127,10 @@ public class Server {
     private static void receiveFile(Socket clientSocket, String[] commandParts, String fileName) throws IOException {
         File file = new File("serverFiles", fileName);
         if (file.exists()) {
+            System.out.println("Received file '" + fileName + "' from client, but file already exists.");
             // 如果文件已存在，则返回错误信息
             try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream()))) {
-                writer.write("Error: File already exists.");
+                writer.write("Error: Cannot upload file ’"+ fileName +"’; already exists on server.");
             }
             return;
         }
@@ -139,7 +143,7 @@ public class Server {
                     contentBuilder.append(" ");
                 }
             }
-            String content = contentBuilder.toString().replace("$$$", "\n");
+            String content = contentBuilder.toString().replace("$@$", "\n");
 
             try (PrintWriter fileOut = new PrintWriter(file)) {
                 fileOut.print(content);
@@ -151,7 +155,6 @@ public class Server {
         try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream()))) {
             writer.write("Success");
         }
-        System.out.println("Received file '" + fileName + "' from client and saved to server.");
     }
 
     /**
@@ -163,10 +166,10 @@ public class Server {
     private static void logRequest(String clientAddress, String request) {
         try (PrintWriter logWriter = new PrintWriter(new FileWriter("log.txt", true))) {
             // 获取当前日期和时间
-            String dateTime = java.time.LocalDateTime.now().toString();
+            String dateTime = LocalDateTime.now().format(formatter);
 
             // 记录请求到日志文件
-            logWriter.write(dateTime + "|" + clientAddress + "|" + request + "/n");
+            logWriter.write(dateTime + "|" + clientAddress + "|" + request + "\n");
         } catch (IOException e) {
             e.printStackTrace();
         }
